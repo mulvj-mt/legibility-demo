@@ -1,6 +1,6 @@
 import requests
 
-def get_weather_forecast(lat, lng, start_date, end_date):
+def get_weather_forecast(lat: float, lng: float, date_str: str) -> dict | None:
     """
     Fetches daily weather forecast data from Open-Meteo.
     
@@ -15,8 +15,8 @@ def get_weather_forecast(lat, lng, start_date, end_date):
     params = {
         'latitude': lat,
         'longitude': lng,
-        'start_date': start_date,
-        'end_date': end_date,
+        'start_date': date_str,
+        'end_date': date_str,
         'daily': 'temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code',
         'timezone': 'auto'
     }
@@ -28,16 +28,14 @@ def get_weather_forecast(lat, lng, start_date, end_date):
         
         # Displaying the results
         daily = data['daily']
-        print(f"Weather for ({lat}, {lng}) from {start_date} to {end_date}:")
-        for i in range(len(daily['time'])):
-            print(f"Date: {daily['time'][i]}")
-            print(f"  Max Temp: {daily['temperature_2m_max'][i]}°C")
-            print(f"  Min Temp: {daily['temperature_2m_min'][i]}°C")
-            print(f"  Precipitation: {daily['precipitation_sum'][i]}mm")
-            print("-" * 20)
+        return {
+            "max_temp": daily['temperature_2m_max'][0],
+            "min_temp": daily['temperature_2m_min'][0],
+            "precipitation": daily['precipitation_sum'][0]
+        }
             
     except requests.exceptions.RequestException as e:
         print(f"Error fetching data: {e}")
 
 if __name__ == "__main__":
-    get_weather_forecast(51.5074, -0.1278, '2026-06-20', '2026-06-20')
+    print(get_weather_forecast(51.5074, -0.1278, '2026-06-20'))
