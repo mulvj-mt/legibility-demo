@@ -1,0 +1,50 @@
+{
+  "steps": [
+    {
+      "name": "lat",
+      "type": "input",
+      "prompt": "Latitude: "
+    },
+    {
+      "name": "lng",
+      "type": "input",
+      "prompt": "Longitude: "
+    },
+    {
+      "name": "date",
+      "type": "input",
+      "prompt": "Date (yyyy-mm-dd): "
+    },
+    {
+      "name": "get_sunset",
+      "type": "api",
+      "method": "get",
+      "url": "https://api.sunrise-sunset.org/json",
+      "params": {
+        "lat": "{lat}",
+        "lng": "{lng}",
+        "date": "{date}",
+        "formatted": "0"
+      }
+    },
+    {
+      "name": "get_weather",
+      "type": "api",
+      "method": "get",
+      "url": "https://api.open-meteo.com/v1/forecast",
+      "params": {
+        "latitude": "{lat}",
+        "longitude": "{lng}",
+        "start_date": "{date}",
+        "end_date": "{date}",
+        "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code",
+        "timezone": "auto"
+      }
+    },
+    {
+      "name": "print_output",
+      "type": "output",
+      "template": "Report for {lat}, {lng} on {date}. \n"
+    }
+  ]
+}

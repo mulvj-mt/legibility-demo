@@ -57,11 +57,15 @@ name = "fsm-demo"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "python-statemachine" },
     { name = "requests" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "requests", specifier = ">=2.34.2" }]
+requires-dist = [
+    { name = "python-statemachine", specifier = ">=3.1.2" },
+    { name = "requests", specifier = ">=2.34.2" },
+]
 
 [[package]]
 name = "idna"
@@ -70,6 +74,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/cd/63/9496c57188a2ee585e0f1db071d75089a11e98aa86eb99d9d7618fc1edce/idna-3.18.tar.gz", hash = "sha256:ffb385a7e039654cef1ab9ef32c6fafe283c0c0467bba1d9029738ce4a14a848", size = 196711, upload-time = "2026-06-02T14:34:07.794Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/1e/5e/d4e9f1a599fb8e573b7b87160658329fbf28d19eac2718f51fc3def3aa5a/idna-3.18-py3-none-any.whl", hash = "sha256:7f952cbe720b688055e3f87de14f5c3e5fdaa8bc3928985c4077ca689de849a2", size = 65455, upload-time = "2026-06-02T14:34:06.319Z" },
+]
+
+[[package]]
+name = "python-statemachine"
+version = "3.1.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/af/e2/dcc389e9855f65a3e54c859499dd409341d5ba561da74af22ce824bc4964/python_statemachine-3.1.2.tar.gz", hash = "sha256:3a64c4ae91d628eb256580f328c68b16e472f25794d2c478e91f2f1dfb8b0668", size = 710648, upload-time = "2026-05-19T00:13:12.495Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f2/f5/fe9072bfc9d245138561c09bf05b841bf6d92b4ce93d44dbfa18d96e498e/python_statemachine-3.1.2-py3-none-any.whl", hash = "sha256:89dcdbcbf7b197adade16138c75bee4f32e0c98b7eeb18d30aeb1c830dbbdd62", size = 126113, upload-time = "2026-05-19T00:13:10.854Z" },
 ]
 
 [[package]]
