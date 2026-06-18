@@ -42,7 +42,7 @@ class StepActions:
 
         try:
             result = response.json()
-        except ValueError, AttributeError:
+        except (ValueError, AttributeError):
             result = {"result": response.text}
 
         context[step["name"]] = json.dumps(result)
