@@ -17,7 +17,18 @@
         "q": "{place_name}, UK",
         "format": "json",
         "limit": "10"
-      }
+      },
+      "transitions": [
+        {"target": "date", "cond": "single_result", "on": "store_first_as_location"},
+        {"target": "disambiguate_location"}
+      ]
+    },
+    {
+      "name": "disambiguate_location",
+      "type": "disambiguate",
+      "source": "geocode",
+      "label_template": "{display_name}",
+      "prompt": "Multiple locations found — please choose one:"
     },
     {
       "name": "date",
@@ -30,8 +41,8 @@
       "method": "get",
       "url": "https://api.sunrise-sunset.org/json",
       "params": {
-        "lat": "{geocode[0][lat]}",
-        "lng": "{geocode[0][lon]}",
+        "lat": "{location[lat]}",
+        "lng": "{location[lon]}",
         "date": "{date}",
         "formatted": "0"
       }
@@ -42,8 +53,8 @@
       "method": "get",
       "url": "https://api.open-meteo.com/v1/forecast",
       "params": {
-        "latitude": "{geocode[0][lat]}",
-        "longitude": "{geocode[0][lon]}",
+        "latitude": "{location[lat]}",
+        "longitude": "{location[lon]}",
         "start_date": "{date}",
         "end_date": "{date}",
         "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code",
@@ -53,7 +64,7 @@
     {
       "name": "print_output",
       "type": "output",
-      "template": "Briefing for {geocode[0][display_name]} on {date}\n  Sunrise : {get_sunset[results][sunrise]}\n  Sunset  : {get_sunset[results][sunset]}\n  Max temp: {get_weather[daily][temperature_2m_max][0]} C\n  Min temp: {get_weather[daily][temperature_2m_min][0]} C\n  Precip  : {get_weather[daily][precipitation_sum][0]} mm"
+      "template": "Briefing for {location[display_name]} on {date}\n  Sunrise : {get_sunset[results][sunrise]}\n  Sunset  : {get_sunset[results][sunset]}\n  Max temp: {get_weather[daily][temperature_2m_max][0]} C\n  Min temp: {get_weather[daily][temperature_2m_min][0]} C\n  Precip  : {get_weather[daily][precipitation_sum][0]} mm"
     }
   ]
 }

@@ -40,6 +40,7 @@ class StepCompleted:
 class AwaitingInput:
     step_name: str
     prompt: str
+    options: list | None = None
 
 @dataclass
 class ApiCall:
@@ -59,6 +60,12 @@ class InputRequest:
     step_name: str
     prompt: str
     options: list | None = None  # populated for "disambiguate" kind
+
+
+@dataclass
+class DisambiguateOption:
+    label: str
+    value: Any  # the full candidate dict; carries lat/lon so Nominatim isn't re-queried
 
 
 # ── Exceptions ────────────────────────────────────────────────────────────────
@@ -117,7 +124,8 @@ class StepActions:
         template = step.get("template")
         if template:
             print(_render(template, context))
-        print(json.dumps(context.as_format_map(), indent=2, default=str))
+        else:
+            print(json.dumps(context.as_format_map(), indent=2, default=str))
 
 
 # ── Machine factory ───────────────────────────────────────────────────────────
@@ -154,9 +162,22 @@ class WorkflowMachineFactory:
                         "on": self._make_input_on(step),
                     }]
 
+            elif step_type == "disambiguate":
+                enter, on_actions = self._make_disambiguate_callbacks(step)
+                state_def["enter"] = [enter]
+                if next_name:
+                    state_def["transitions"] = [{
+                        "target": next_name,
+                        "event": "provide_input",
+                        "on": on_actions,
+                    }]
+
             elif step_type in ("api", "output"):
                 state_def["enter"] = [self._make_auto_enter(step)]
-                if next_name:
+                explicit = step.get("transitions")
+                if explicit:
+                    state_def["transitions"] = self._resolve_transitions(step, explicit)
+                elif next_name:
                     state_def["transitions"] = [{"target": next_name}]
 
             else:
@@ -195,6 +216,79 @@ class WorkflowMachineFactory:
 
         return [store, complete]
 
+    def _make_disambiguate_callbacks(self, step: dict) -> tuple[Callable, list[Callable]]:
+        runner = self._runner
+        context = self._context
+        step_name = step["name"]
+        source = step["source"]
+        label_template = step.get("label_template", "{display_name}")
+        prompt = step.get("prompt", "Please select one:")
+
+        # Mutable list shared between enter (writer) and on-actions (reader).
+        _options: list[DisambiguateOption] = []
+
+        def enter() -> None:
+            candidates = context[source]
+            if not candidates:
+                runner._deferred_error = WorkflowError(
+                    f"Step '{source}' returned no results — cannot proceed. "
+                    f"(Zero-match handling is an open design question.)"
+                )
+                return
+            options = [
+                DisambiguateOption(label=label_template.format(**c), value=c)
+                for c in candidates
+            ]
+            _options.clear()
+            _options.extend(options)
+            runner._notify(StepStarted(step_name=step_name, step_type="disambiguate"))
+            runner._pending = InputRequest(
+                kind="disambiguate",
+                step_name=step_name,
+                prompt=prompt,
+                options=list(_options),
+            )
+            runner._notify(AwaitingInput(step_name=step_name, prompt=prompt, options=list(_options)))
+
+        def store(value: str) -> None:
+            selected = _options[int(value)].value
+            context[step_name] = selected
+            context["location"] = selected
+
+        def complete() -> None:
+            runner._notify(StepCompleted(step_name=step_name, step_type="disambiguate"))
+
+        return enter, [store, complete]
+
+    def _resolve_transitions(self, step: dict, transitions: list) -> list:
+        step_name = step["name"]
+        resolved = []
+        for t in transitions:
+            rt: dict[str, Any] = {"target": t["target"]}
+            if "cond" in t:
+                rt["cond"] = self._resolve_cond(t["cond"], step_name)
+            if "on" in t:
+                rt["on"] = [self._resolve_on_action(t["on"], step_name)]
+            resolved.append(rt)
+        return resolved
+
+    def _resolve_cond(self, cond_name: str, step_name: str) -> Callable:
+        context = self._context
+        if cond_name == "single_result":
+            def guard() -> bool:
+                result = context[step_name]
+                return isinstance(result, list) and len(result) == 1
+            return guard
+        raise WorkflowError(f"Unknown condition: {cond_name!r}")
+
+    def _resolve_on_action(self, action_name: str, step_name: str) -> Callable:
+        context = self._context
+        if action_name == "store_first_as_location":
+            def action() -> None:
+                context["location"] = context[step_name][0]
+            return action
+        raise WorkflowError(f"Unknown action: {action_name!r}")
+
     def _make_auto_enter(self, step: dict) -> Callable:
         context = self._context
         runner = self._runner
@@ -222,6 +316,7 @@ class WorkflowRunner:
     ) -> None:
         self._context = WorkflowData()
         self._pending: InputRequest | None = None
+        self._deferred_error: Exception | None = None
         self.observers: list[Callable[[WorkflowEvent], None]] = observers or []
 
         factory = WorkflowMachineFactory(self._context, self)
@@ -236,13 +331,19 @@ class WorkflowRunner:
         return self._pending
 
     def provide_input(self, value: str) -> None:
+        if self._deferred_error is not None:
+            err, self._deferred_error = self._deferred_error, None
+            raise err
         if self._pending is None:
             raise WorkflowError("No input is currently pending")
         self._pending = None
         self._machine.send("provide_input", value=value)
+        if self._deferred_error is not None:
+            err, self._deferred_error = self._deferred_error, None
+            raise err
 
     def is_finished(self) -> bool:
-        return self._machine.current_state.final
+        return any(s.final for s in self._machine.configuration)
 
 
 # ── CLI observer ──────────────────────────────────────────────────────────────
@@ -253,8 +354,11 @@ def stdout_observer(event: WorkflowEvent) -> None:
             print(f"[start] {name} ({kind})")
         case StepCompleted(step_name=name, step_type=kind):
             print(f"[done]  {name} ({kind})")
-        case AwaitingInput(step_name=name, prompt=prompt):
+        case AwaitingInput(step_name=name, prompt=prompt, options=options):
             print(f"[wait]  {name}: {prompt!r}")
+            if options:
+                for i, opt in enumerate(options):
+                    print(f"         [{i}] {opt.label}")
         case ApiCall(step_name=name, url=url, params=params):
             print(f"[api]   {name}: {url}  params={params}")
 
@@ -273,5 +377,7 @@ if __name__ == "__main__":
         req = runner.pending_request()
         if req is None:
             break
-        value = input(req.prompt)
+        # For disambiguate the observer already printed the options; just prompt for a number.
+        prompt = "> " if req.kind == "disambiguate" else req.prompt
+        value = input(prompt)
         runner.provide_input(value)
