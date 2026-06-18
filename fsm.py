@@ -95,9 +95,13 @@ class StepActions:
             k: _render(v, context)
             for k, v in step.get("params", {}).items()
         }
+        headers = {
+            k: _render(v, context)
+            for k, v in step.get("headers", {}).items()
+        }
         notify(ApiCall(step_name=step["name"], url=url, params=params))
 
-        response = requests.request(method, url, params=params)
+        response = requests.request(method, url, params=params, headers=headers)
         response.raise_for_status()
 
         try:
@@ -258,7 +262,9 @@ def stdout_observer(event: WorkflowEvent) -> None:
 # ── CLI harness ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    response = requests.get("http://127.0.0.1:8000/workflows", params={"name": "workflow_1"})
+    import sys
+    workflow_name = sys.argv[1] if len(sys.argv) > 1 else "workflow_1"
+    response = requests.get("http://127.0.0.1:8000/workflows", params={"name": workflow_name})
     workflow = response.json()
 
     runner = WorkflowRunner(workflow, observers=[stdout_observer])
