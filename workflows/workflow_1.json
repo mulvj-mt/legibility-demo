@@ -44,7 +44,7 @@
     {
       "name": "print_output",
       "type": "output",
-      "template": "Report for {lat}, {lng} on {date}. \n"
+      "template": "Briefing for {lat}, {lng} on {date}\n  Sunrise : {get_sunset[results][sunrise]}\n  Sunset  : {get_sunset[results][sunset]}\n  Max temp: {get_weather[daily][temperature_2m_max][0]} C\n  Min temp: {get_weather[daily][temperature_2m_min][0]} C\n  Precip  : {get_weather[daily][precipitation_sum][0]} mm"
     }
   ]
 }

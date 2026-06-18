@@ -3,7 +3,25 @@ from statemachine.io import create_machine_class_from_definition
 from dataclasses import dataclass
 from typing import Any, Callable
 import json
+import string
 import requests
+
+
+# ── Template resolution ───────────────────────────────────────────────────────
+
+class WorkflowFormatter(string.Formatter):
+    """Extends standard formatter to JSON-serialise dict/list values when no
+    format spec is given, while still supporting {name[key][subkey]} and
+    {name[0]} nested/indexed access via the standard field_name parser."""
+
+    def format_field(self, value: Any, format_spec: str) -> str:
+        if isinstance(value, (dict, list)) and not format_spec:
+            return json.dumps(value, default=str)
+        return super().format_field(value, format_spec)
+
+
+def _render(template: str, context: "WorkflowData") -> str:
+    return WorkflowFormatter().format(template, **context.as_format_map())
 
 
 # ── Event types ───────────────────────────────────────────────────────────────
@@ -74,7 +92,7 @@ class StepActions:
         url: str = step["url"]
         method = step.get("method", "GET").upper()
         params = {
-            k: v.format(**context.as_format_map())
+            k: _render(v, context)
             for k, v in step.get("params", {}).items()
         }
         notify(ApiCall(step_name=step["name"], url=url, params=params))
@@ -87,14 +105,14 @@ class StepActions:
         except (ValueError, AttributeError):
             result = {"result": response.text}
 
-        context[step["name"]] = json.dumps(result)
+        context[step["name"]] = result
         return result
 
     @staticmethod
     def render_output(step: dict, context: WorkflowData) -> None:
         template = step.get("template")
         if template:
-            print(template.format(**context.as_format_map()))
+            print(_render(template, context))
         print(json.dumps(context.as_format_map(), indent=2, default=str))
 
 
