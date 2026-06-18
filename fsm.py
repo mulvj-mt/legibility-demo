@@ -1,6 +1,6 @@
-from statemachine import State, StateChart
+from statemachine import StateChart
 from statemachine.io import create_machine_class_from_definition
-from typing import Any, Callable
+from typing import Any
 import json
 import requests
 
@@ -102,11 +102,13 @@ class WorkFlowMachineFactory:
 
 
 if __name__ == '__main__':
-    with open("workflow.json") as f:
-        workflow = json.load(f)
     context = WorkflowData()
     factory = WorkFlowMachineFactory(context)
+    response = requests.get("http://127.0.0.1:8000/workflows",params={"name": "workflow_1"})
+    workflow = response.json()
     machine = factory.build(workflow)
+    for state in machine.states:
+        print(state.id, "initial" if state.initial else "", "final" if state.final else "")
     machine()
     
     
