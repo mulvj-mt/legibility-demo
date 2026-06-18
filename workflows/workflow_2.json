@@ -14,7 +14,7 @@
         "User-Agent": "legibility-demo/0.1"
       },
       "params": {
-        "q": "{place_name}",
+        "q": "{place_name}, UK",
         "format": "json",
         "limit": "10"
       }
