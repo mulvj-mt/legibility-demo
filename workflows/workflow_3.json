@@ -44,7 +44,7 @@
         "accept-language": "en"
       },
       "transitions": [
-        {"target": "print_output_gbp", "cond": "currency_is_gbp"},
+        {"target": "print_output_gbp", "cond": "eq:location.currency:GBP"},
         {"target": "get_exchange_rate"}
       ]
     },

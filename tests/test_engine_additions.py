@@ -44,7 +44,7 @@ CURRENCY_WORKFLOW = {
             "url": "http://localhost/fx",
             "params": {"from": "GBP", "to": "{location[currency]}"},
             "transitions": [
-                {"target": "gbp_output", "cond": "currency_is_gbp"},
+                {"target": "gbp_output", "cond": "eq:location.currency:GBP"},
                 {"target": "fx_output"},
             ],
         },
@@ -83,6 +83,22 @@ class TestCurrencyIsGbpGuard:
             runner = WorkflowRunner(CURRENCY_WORKFLOW)
             runner.provide_input("United Kingdom")
             assert runner._context["location"]["currency"] == "GBP"
+
+    def test_eq_condition_on_nested_field(self):
+        """eq: evaluates any dotted context path — not just currency."""
+        eu_country = [{"name": "France", "capital": "Paris", "currency": "EUR", "region": "Europe"}]
+        with patch("requests.request", side_effect=[mock_api(eu_country), mock_api(FX_RESPONSE)]):
+            runner = WorkflowRunner(CURRENCY_WORKFLOW)
+            runner.provide_input("France")
+            assert runner.is_finished()
+            assert runner._context["location"]["currency"] == "EUR"
+
+    def test_eq_condition_false_for_non_matching_value(self):
+        """eq: returns False and takes the default transition when the value differs."""
+        with patch("requests.request", side_effect=[mock_api(JPY_COUNTRY), mock_api(FX_RESPONSE)]):
+            runner = WorkflowRunner(CURRENCY_WORKFLOW)
+            runner.provide_input("Japan")
+            assert runner._context["location"]["currency"] == "JPY"
 
     def test_unknown_cond_raises(self):
         bad_workflow = {

@@ -290,10 +290,16 @@ class WorkflowMachineFactory:
                 result = context[step_name]
                 return isinstance(result, list) and len(result) == 1
             return guard
-        if cond_name == "currency_is_gbp":
+        if cond_name.startswith("eq:"):
+            _, path, expected = cond_name.split(":", 2)
+            keys = path.split(".")
             def guard() -> bool:
-                loc = context["location"]
-                return isinstance(loc, dict) and loc.get("currency") == "GBP"
+                obj: Any = context[keys[0]]
+                for key in keys[1:]:
+                    if not isinstance(obj, dict):
+                        return False
+                    obj = obj.get(key)
+                return obj == expected
             return guard
         raise WorkflowError(f"Unknown condition: {cond_name!r}")
 
