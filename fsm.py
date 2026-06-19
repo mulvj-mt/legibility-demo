@@ -157,10 +157,12 @@ class WorkflowMachineFactory:
 
             if i == 0:
                 state_def["initial"] = True
-            if i == len(steps) - 1:
+            is_final = (i == len(steps) - 1) or bool(step.get("final"))
+            if is_final:
                 state_def["final"] = True
 
-            next_name = steps[i + 1]["name"] if i < len(steps) - 1 else None
+            # Final steps must not have outgoing transitions (python-statemachine constraint).
+            next_name = steps[i + 1]["name"] if i < len(steps) - 1 and not is_final else None
 
             if step_type == "input":
                 state_def["enter"] = [self._make_input_enter(step)]
@@ -287,6 +289,11 @@ class WorkflowMachineFactory:
             def guard() -> bool:
                 result = context[step_name]
                 return isinstance(result, list) and len(result) == 1
+            return guard
+        if cond_name == "currency_is_gbp":
+            def guard() -> bool:
+                loc = context["location"]
+                return isinstance(loc, dict) and loc.get("currency") == "GBP"
             return guard
         raise WorkflowError(f"Unknown condition: {cond_name!r}")
 
