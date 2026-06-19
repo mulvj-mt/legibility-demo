@@ -1,0 +1,74 @@
+{
+  "description": "Generate a country briefing for a named country: capital, region, languages, currency, and a live GBP exchange rate. Includes disambiguation when the name matches multiple countries, geocoding of the capital city (chained from the country lookup), and a conditional branch that skips the exchange rate step for GBP countries.",
+  "inputs": {
+    "country_name": "Name of the country (e.g. 'Japan', 'Brazil', 'South Korea')"
+  },
+  "steps": [
+    {
+      "name": "country_name",
+      "type": "input",
+      "prompt": "Country name: "
+    },
+    {
+      "name": "search_country",
+      "type": "api",
+      "method": "get",
+      "url": "http://127.0.0.1:8000/countries/search",
+      "params": {
+        "q": "{country_name}"
+      },
+      "transitions": [
+        {"target": "geocode_capital", "cond": "single_result", "on": "store_first_as_location"},
+        {"target": "disambiguate_country"}
+      ]
+    },
+    {
+      "name": "disambiguate_country",
+      "type": "disambiguate",
+      "source": "search_country",
+      "label_template": "{name} ({region})",
+      "prompt": "Multiple countries matched — please choose one:"
+    },
+    {
+      "name": "geocode_capital",
+      "type": "api",
+      "method": "get",
+      "url": "https://nominatim.openstreetmap.org/search",
+      "headers": {
+        "User-Agent": "legibility-demo/0.1"
+      },
+      "params": {
+        "q": "{location[capital]}",
+        "format": "json",
+        "limit": "1",
+        "accept-language": "en"
+      },
+      "transitions": [
+        {"target": "print_output_gbp", "cond": "currency_is_gbp"},
+        {"target": "get_exchange_rate"}
+      ]
+    },
+    {
+      "name": "get_exchange_rate",
+      "type": "api",
+      "method": "get",
+      "url": "https://api.frankfurter.app/latest",
+      "params": {
+        "from": "{location[currency]}",
+        "to": "GBP"
+      }
+    },
+    {
+      "name": "print_output_rate",
+      "type": "output",
+      "final": true,
+      "template": "Country briefing: {location[name]}\n  Capital   : {location[capital]} ({geocode_capital[0][lat]}, {geocode_capital[0][lon]})\n  Region    : {location[subregion]}, {location[region]}\n  Languages : {location[languages]}\n  Currency  : {location[currency]} ({location[currency_name]})\n  GBP rate  : 1 {location[currency]} = {get_exchange_rate[rates][GBP]} GBP  (as of {get_exchange_rate[date]})"
+    },
+    {
+      "name": "print_output_gbp",
+      "type": "output",
+      "final": true,
+      "template": "Country briefing: {location[name]}\n  Capital   : {location[capital]} ({geocode_capital[0][lat]}, {geocode_capital[0][lon]})\n  Region    : {location[subregion]}, {location[region]}\n  Languages : {location[languages]}\n  Currency  : GBP (British pound — no conversion needed)"
+    }
+  ]
+}
