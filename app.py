@@ -8,10 +8,21 @@ def respond(user_message: str, history: list, session: dict):
         return "", history, "\n".join(session["event_log"]), session
 
     if session.get("agent") is None:
-        session["agent"] = make_agent(session)
+        try:
+            session["agent"] = make_agent(session)
+        except Exception as exc:
+            err = f"Could not initialise agent: {exc}"
+            history = history + [
+                {"role": "user", "content": user_message},
+                {"role": "assistant", "content": err},
+            ]
+            return "", history, "\n".join(session["event_log"]), session
 
-    result = session["agent"](user_message)
-    response = str(result)
+    try:
+        result = session["agent"](user_message)
+        response = str(result)
+    except Exception as exc:
+        response = f"Agent error: {exc}"
 
     history = history + [
         {"role": "user", "content": user_message},
