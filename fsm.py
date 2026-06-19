@@ -47,6 +47,7 @@ class ApiCall:
     step_name: str
     url: str
     params: dict
+    body: dict | None = None
 
 
 WorkflowEvent = StepStarted | StepCompleted | AwaitingInput | ApiCall
@@ -106,9 +107,13 @@ class StepActions:
             k: _render(v, context)
             for k, v in step.get("headers", {}).items()
         }
-        notify(ApiCall(step_name=step["name"], url=url, params=params))
+        body = {
+            k: _render(v, context)
+            for k, v in step.get("body", {}).items()
+        } or None
+        notify(ApiCall(step_name=step["name"], url=url, params=params, body=body))
 
-        response = requests.request(method, url, params=params, headers=headers)
+        response = requests.request(method, url, params=params, headers=headers, json=body)
         response.raise_for_status()
 
         try:
@@ -297,10 +302,14 @@ class WorkflowMachineFactory:
 
         def enter() -> None:
             runner._notify(StepStarted(step_name=step_name, step_type=step_type))
-            if step_type == "api":
-                StepActions.run_api(step, context, runner._notify)
-            elif step_type == "output":
-                StepActions.render_output(step, context)
+            try:
+                if step_type == "api":
+                    StepActions.run_api(step, context, runner._notify)
+                elif step_type == "output":
+                    StepActions.render_output(step, context)
+            except Exception as exc:
+                runner._deferred_error = WorkflowError(f"Step '{step_name}' failed: {exc}")
+                return
             runner._notify(StepCompleted(step_name=step_name, step_type=step_type))
 
         return enter
@@ -359,8 +368,10 @@ def stdout_observer(event: WorkflowEvent) -> None:
             if options:
                 for i, opt in enumerate(options):
                     print(f"         [{i}] {opt.label}")
-        case ApiCall(step_name=name, url=url, params=params):
+        case ApiCall(step_name=name, url=url, params=params, body=body):
             print(f"[api]   {name}: {url}  params={params}")
+            if body:
+                print(f"         body={body}")
 
 
 # ── CLI harness ───────────────────────────────────────────────────────────────

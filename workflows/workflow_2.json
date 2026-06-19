@@ -65,6 +65,23 @@
       "name": "print_output",
       "type": "output",
       "template": "Briefing for {location[display_name]} on {date}\n  Sunrise : {get_sunset[results][sunrise]}\n  Sunset  : {get_sunset[results][sunset]}\n  Max temp: {get_weather[daily][temperature_2m_max][0]} C\n  Min temp: {get_weather[daily][temperature_2m_min][0]} C\n  Precip  : {get_weather[daily][precipitation_sum][0]} mm"
+    },
+    {
+      "name": "save_report",
+      "type": "api",
+      "method": "POST",
+      "url": "http://127.0.0.1:8001/report",
+      "body": {
+        "location":      "{location[display_name]}",
+        "latitude":      "{location[lat]}",
+        "longitude":     "{location[lon]}",
+        "report_date":   "{date}",
+        "sunrise":       "{get_sunset[results][sunrise]}",
+        "sunset":        "{get_sunset[results][sunset]}",
+        "precipitation": "{get_weather[daily][precipitation_sum][0]}",
+        "max_temp":      "{get_weather[daily][temperature_2m_max][0]}",
+        "min_temp":      "{get_weather[daily][temperature_2m_min][0]}"
+      }
     }
   ]
 }
