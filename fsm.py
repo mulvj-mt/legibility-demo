@@ -380,6 +380,7 @@ if __name__ == "__main__":
     import sys
     workflow_name = sys.argv[1] if len(sys.argv) > 1 else "workflow_1"
     response = requests.get("http://127.0.0.1:8000/workflows", params={"name": workflow_name})
+    response.raise_for_status()
     workflow = response.json()
 
     runner = WorkflowRunner(workflow, observers=[stdout_observer])
