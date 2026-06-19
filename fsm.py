@@ -261,10 +261,12 @@ class WorkflowMachineFactory:
             )
             runner._notify(AwaitingInput(step_name=step_name, prompt=prompt, options=list(_options)))
 
+        result_key = step.get("result_key", "location")
+
         def store(value: str) -> None:
             selected = _options[int(value)].value
             context[step_name] = selected
-            context["location"] = selected
+            context[result_key] = selected
 
         def complete() -> None:
             runner._notify(StepCompleted(step_name=step_name, step_type="disambiguate"))
@@ -305,9 +307,10 @@ class WorkflowMachineFactory:
 
     def _resolve_on_action(self, action_name: str, step_name: str) -> Callable:
         context = self._context
-        if action_name == "store_first_as_location":
+        if action_name.startswith("store_first_as:"):
+            key = action_name.split(":", 1)[1]
             def action() -> None:
-                context["location"] = context[step_name][0]
+                context[key] = context[step_name][0]
             return action
         raise WorkflowError(f"Unknown action: {action_name!r}")
 

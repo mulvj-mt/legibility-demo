@@ -18,7 +18,7 @@
         "q": "{country_name}"
       },
       "transitions": [
-        {"target": "geocode_capital", "cond": "single_result", "on": "store_first_as_location"},
+        {"target": "geocode_capital", "cond": "single_result", "on": "store_first_as:location"},
         {"target": "disambiguate_country"}
       ]
     },
@@ -27,7 +27,8 @@
       "type": "disambiguate",
       "source": "search_country",
       "label_template": "{name} ({region})",
-      "prompt": "Multiple countries matched — please choose one:"
+      "prompt": "Multiple countries matched — please choose one:",
+      "result_key": "location"
     },
     {
       "name": "geocode_capital",

@@ -26,7 +26,7 @@ CURRENCY_WORKFLOW = {
             "url": "http://localhost/countries/search",
             "params": {"q": "{country_name}"},
             "transitions": [
-                {"target": "gbp_output", "cond": "single_result", "on": "store_first_as_location"},
+                {"target": "gbp_output", "cond": "single_result", "on": "store_first_as:location"},
                 {"target": "disambiguate_country"},
             ],
         },
@@ -119,6 +119,63 @@ class TestCurrencyIsGbpGuard:
             WorkflowRunner(bad_workflow)
 
 
+# ── store_first_as:{key} and disambiguate result_key ──────────────────────────
+
+CUSTOM_KEY_WORKFLOW = {
+    "steps": [
+        {"name": "query", "type": "input", "prompt": "q: "},
+        {
+            "name": "search",
+            "type": "api",
+            "method": "get",
+            "url": "http://localhost/search",
+            "params": {"q": "{query}"},
+            "transitions": [
+                {"target": "done", "cond": "single_result", "on": "store_first_as:selected"},
+                {"target": "pick"},
+            ],
+        },
+        {
+            "name": "pick",
+            "type": "disambiguate",
+            "source": "search",
+            "label_template": "{name}",
+            "prompt": "Choose:",
+            "result_key": "selected",
+        },
+        {"name": "done", "type": "output", "template": "ok: {selected[name]}"},
+    ]
+}
+
+ITEMS = [
+    {"name": "alpha", "val": 1},
+    {"name": "beta", "val": 2},
+]
+
+
+class TestGenericStoreKey:
+    def test_store_first_as_writes_to_custom_key(self):
+        with patch("requests.request", return_value=mock_api([ITEMS[0]])):
+            runner = WorkflowRunner(CUSTOM_KEY_WORKFLOW)
+            runner.provide_input("x")
+            assert runner._context["selected"] == ITEMS[0]
+            assert runner._context["location"] is None
+
+    def test_store_first_as_does_not_pollute_location(self):
+        with patch("requests.request", return_value=mock_api([ITEMS[0]])):
+            runner = WorkflowRunner(CUSTOM_KEY_WORKFLOW)
+            runner.provide_input("x")
+            assert runner._context["location"] is None
+
+    def test_disambiguate_result_key_writes_to_custom_key(self):
+        with patch("requests.request", return_value=mock_api(ITEMS)):
+            runner = WorkflowRunner(CUSTOM_KEY_WORKFLOW)
+            runner.provide_input("x")
+            runner.provide_input("1")
+            assert runner._context["selected"] == ITEMS[1]
+            assert runner._context["location"] is None
+
+
 # ── final: true on non-last step ───────────────────────────────────────────────
 
 BRANCHING_WORKFLOW = {
@@ -131,7 +188,7 @@ BRANCHING_WORKFLOW = {
             "url": "http://localhost/data",
             "params": {"q": "{start}"},
             "transitions": [
-                {"target": "early_exit", "cond": "single_result", "on": "store_first_as_location"},
+                {"target": "early_exit", "cond": "single_result", "on": "store_first_as:location"},
                 {"target": "normal_exit"},
             ],
         },

@@ -15,7 +15,7 @@ WORKFLOW = {
             "headers": {"User-Agent": "test/0.1"},
             "params": {"q": "{place_name}, UK", "format": "json", "limit": "10"},
             "transitions": [
-                {"target": "done", "cond": "single_result", "on": "store_first_as_location"},
+                {"target": "done", "cond": "single_result", "on": "store_first_as:location"},
                 {"target": "disambiguate_location"},
             ],
         },

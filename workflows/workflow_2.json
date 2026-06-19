@@ -24,7 +24,7 @@
         "limit": "10"
       },
       "transitions": [
-        {"target": "date", "cond": "single_result", "on": "store_first_as_location"},
+        {"target": "date", "cond": "single_result", "on": "store_first_as:location"},
         {"target": "disambiguate_location"}
       ]
     },
@@ -33,7 +33,8 @@
       "type": "disambiguate",
       "source": "geocode",
       "label_template": "{display_name}",
-      "prompt": "Multiple locations found — please choose one:"
+      "prompt": "Multiple locations found — please choose one:",
+      "result_key": "location"
     },
     {
       "name": "date",
