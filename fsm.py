@@ -10,9 +10,7 @@ import requests
 # ── Template resolution ───────────────────────────────────────────────────────
 
 class WorkflowFormatter(string.Formatter):
-    """Extends standard formatter to JSON-serialise dict/list values when no
-    format spec is given, while still supporting {name[key][subkey]} and
-    {name[0]} nested/indexed access via the standard field_name parser."""
+    """JSON-serialises dict/list values when no format spec is given."""
 
     def format_field(self, value: Any, format_spec: str) -> str:
         if isinstance(value, (dict, list)) and not format_spec:
@@ -96,45 +94,33 @@ class WorkflowData:
         return self.data
 
 
-# ── Step actions (stateless) ──────────────────────────────────────────────────
+# ── Step actions ──────────────────────────────────────────────────────────────
 
-class StepActions:
+def _run_api(step: dict, context: WorkflowData, notify: Callable[[WorkflowEvent], None]) -> dict:
+    url: str = step["url"]
+    method = step.get("method", "GET").upper()
+    params = {k: _render(v, context) for k, v in step.get("params", {}).items()}
+    headers = {k: _render(v, context) for k, v in step.get("headers", {}).items()}
+    body = {k: _render(v, context) for k, v in step.get("body", {}).items()} or None
+    notify(ApiCall(step_name=step["name"], url=url, params=params, body=body))
 
-    @staticmethod
-    def run_api(step: dict, context: WorkflowData, notify: Callable[[WorkflowEvent], None]) -> dict:
-        url: str = step["url"]
-        method = step.get("method", "GET").upper()
-        params = {
-            k: _render(v, context)
-            for k, v in step.get("params", {}).items()
-        }
-        headers = {
-            k: _render(v, context)
-            for k, v in step.get("headers", {}).items()
-        }
-        body = {
-            k: _render(v, context)
-            for k, v in step.get("body", {}).items()
-        } or None
-        notify(ApiCall(step_name=step["name"], url=url, params=params, body=body))
+    response = requests.request(method, url, params=params, headers=headers, json=body)
+    response.raise_for_status()
 
-        response = requests.request(method, url, params=params, headers=headers, json=body)
-        response.raise_for_status()
+    try:
+        result = response.json()
+    except (ValueError, AttributeError):
+        result = {"result": response.text}
 
-        try:
-            result = response.json()
-        except (ValueError, AttributeError):
-            result = {"result": response.text}
+    context[step["name"]] = result
+    return result
 
-        context[step["name"]] = result
-        return result
 
-    @staticmethod
-    def render_output(step: dict, context: WorkflowData, notify: Callable[["WorkflowEvent"], None]) -> None:
-        template = step.get("template")
-        text = _render(template, context) if template else json.dumps(context.as_format_map(), indent=2, default=str)
-        print(text)
-        notify(OutputRendered(step_name=step["name"], text=text))
+def _render_output(step: dict, context: WorkflowData, notify: Callable[[WorkflowEvent], None]) -> None:
+    template = step.get("template")
+    text = _render(template, context) if template else json.dumps(context.as_format_map(), indent=2, default=str)
+    print(text)
+    notify(OutputRendered(step_name=step["name"], text=text))
 
 
 # ── Machine factory ───────────────────────────────────────────────────────────
@@ -165,12 +151,13 @@ class WorkflowMachineFactory:
             next_name = steps[i + 1]["name"] if i < len(steps) - 1 and not is_final else None
 
             if step_type == "input":
-                state_def["enter"] = [self._make_input_enter(step)]
+                enter, on_actions = self._make_input_callbacks(step)
+                state_def["enter"] = [enter]
                 if next_name:
                     state_def["transitions"] = [{
                         "target": next_name,
                         "event": "provide_input",
-                        "on": self._make_input_on(step),
+                        "on": on_actions,
                     }]
 
             elif step_type == "disambiguate":
@@ -202,8 +189,9 @@ class WorkflowMachineFactory:
             validate_final_reachability=False,
         )
 
-    def _make_input_enter(self, step: dict) -> Callable:
+    def _make_input_callbacks(self, step: dict) -> tuple[Callable, list[Callable]]:
         runner = self._runner
+        context = self._context
         step_name = step["name"]
         prompt = step.get("prompt", step_name)
 
@@ -212,20 +200,13 @@ class WorkflowMachineFactory:
             runner._pending = InputRequest(kind="input", step_name=step_name, prompt=prompt)
             runner._notify(AwaitingInput(step_name=step_name, prompt=prompt))
 
-        return enter
-
-    def _make_input_on(self, step: dict) -> list[Callable]:
-        context = self._context
-        runner = self._runner
-        step_name = step["name"]
-
         def store(value: str) -> None:
             context[step_name] = value
 
         def complete() -> None:
             runner._notify(StepCompleted(step_name=step_name, step_type="input"))
 
-        return [store, complete]
+        return enter, [store, complete]
 
     def _make_disambiguate_callbacks(self, step: dict) -> tuple[Callable, list[Callable]]:
         runner = self._runner
@@ -234,6 +215,7 @@ class WorkflowMachineFactory:
         source = step["source"]
         label_template = step.get("label_template", "{display_name}")
         prompt = step.get("prompt", "Please select one:")
+        result_key = step.get("result_key", "location")
 
         # Mutable list shared between enter (writer) and on-actions (reader).
         _options: list[DisambiguateOption] = []
@@ -260,8 +242,6 @@ class WorkflowMachineFactory:
                 options=list(_options),
             )
             runner._notify(AwaitingInput(step_name=step_name, prompt=prompt, options=list(_options)))
-
-        result_key = step.get("result_key", "location")
 
         def store(value: str) -> None:
             selected = _options[int(value)].value
@@ -317,16 +297,16 @@ class WorkflowMachineFactory:
     def _make_auto_enter(self, step: dict) -> Callable:
         context = self._context
         runner = self._runner
-        step_type = step.get("type")
+        step_type = step["type"]
         step_name = step["name"]
 
         def enter() -> None:
             runner._notify(StepStarted(step_name=step_name, step_type=step_type))
             try:
                 if step_type == "api":
-                    StepActions.run_api(step, context, runner._notify)
+                    _run_api(step, context, runner._notify)
                 elif step_type == "output":
-                    StepActions.render_output(step, context, runner._notify)
+                    _render_output(step, context, runner._notify)
             except Exception as exc:
                 runner._deferred_error = WorkflowError(f"Step '{step_name}' failed: {exc}")
                 return
@@ -360,6 +340,9 @@ class WorkflowRunner:
         return self._pending
 
     def provide_input(self, value: str) -> None:
+        # Errors are deferred rather than raised inside statemachine transitions,
+        # which would corrupt machine state. Check before send (error from a prior
+        # step's enter) and after send (error from the transition just taken).
         if self._deferred_error is not None:
             err, self._deferred_error = self._deferred_error, None
             raise err
@@ -392,8 +375,8 @@ def stdout_observer(event: WorkflowEvent) -> None:
             print(f"[api]   {name}: {url}  params={params}")
             if body:
                 print(f"         body={body}")
-        case OutputRendered(step_name=name, text=text):
-            pass  # already printed by render_output
+        case OutputRendered():
+            pass  # already printed by _render_output
 
 
 # ── CLI harness ───────────────────────────────────────────────────────────────
