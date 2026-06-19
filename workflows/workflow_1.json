@@ -1,4 +1,10 @@
 {
+  "description": "Generate a sunrise/sunset and weather briefing for a location and date provided as raw coordinates.",
+  "inputs": {
+    "lat": "Latitude as a decimal number (e.g. 51.5074)",
+    "lng": "Longitude as a decimal number (e.g. -0.1278)",
+    "date": "Date for the briefing in YYYY-MM-DD format"
+  },
   "steps": [
     {
       "name": "lat",

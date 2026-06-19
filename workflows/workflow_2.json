@@ -1,4 +1,9 @@
 {
+  "description": "Generate a sunrise/sunset and weather briefing for a named UK location and date. Geocodes the location automatically; handles disambiguation if multiple matches are found.",
+  "inputs": {
+    "place_name": "Name of the UK location (e.g. 'Birkenhead', 'Richmond', 'Keswick')",
+    "date": "Date for the briefing in YYYY-MM-DD format (e.g. 2026-06-21)"
+  },
   "steps": [
     {
       "name": "place_name",
