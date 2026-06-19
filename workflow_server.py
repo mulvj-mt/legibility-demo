@@ -9,11 +9,21 @@ from fastapi.responses import JSONResponse
 WORKFLOWS_DIR = Path(__file__).parent / "workflows"
 VALID_NAME_REGEX = re.compile(r"^[a-z0-9_]+$")
 
+_COUNTRIES: list[dict] = json.loads(
+    (Path(__file__).parent / "countries.json").read_text(encoding="utf-8")
+)
+
 app = FastAPI(title="WorkflowProvider")
 
 @app.get("/healthcheck")
 def healthcheck() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/countries/search")
+def search_countries(q: str = Query(..., min_length=1, description="Country name query")) -> list[dict]:
+    q_lower = q.lower()
+    return [c for c in _COUNTRIES if q_lower in c["name"].lower()]
 
 
 @app.get("/workflows/list")
