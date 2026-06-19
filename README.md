@@ -7,7 +7,7 @@ Then you need to run the following in three different shells.
 
 To serve out the serialised workflow:
 ```shell
-uv uv run uvicorn workflow_server:app --reload
+uv run uvicorn workflow_server:app --reload
 ```
 
 For persisting the report result to Postgres:
