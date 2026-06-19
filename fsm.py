@@ -49,8 +49,13 @@ class ApiCall:
     params: dict
     body: dict | None = None
 
+@dataclass
+class OutputRendered:
+    step_name: str
+    text: str
 
-WorkflowEvent = StepStarted | StepCompleted | AwaitingInput | ApiCall
+
+WorkflowEvent = StepStarted | StepCompleted | AwaitingInput | ApiCall | OutputRendered
 
 
 # ── Input request ─────────────────────────────────────────────────────────────
@@ -125,12 +130,11 @@ class StepActions:
         return result
 
     @staticmethod
-    def render_output(step: dict, context: WorkflowData) -> None:
+    def render_output(step: dict, context: WorkflowData, notify: Callable[["WorkflowEvent"], None]) -> None:
         template = step.get("template")
-        if template:
-            print(_render(template, context))
-        else:
-            print(json.dumps(context.as_format_map(), indent=2, default=str))
+        text = _render(template, context) if template else json.dumps(context.as_format_map(), indent=2, default=str)
+        print(text)
+        notify(OutputRendered(step_name=step["name"], text=text))
 
 
 # ── Machine factory ───────────────────────────────────────────────────────────
@@ -306,7 +310,7 @@ class WorkflowMachineFactory:
                 if step_type == "api":
                     StepActions.run_api(step, context, runner._notify)
                 elif step_type == "output":
-                    StepActions.render_output(step, context)
+                    StepActions.render_output(step, context, runner._notify)
             except Exception as exc:
                 runner._deferred_error = WorkflowError(f"Step '{step_name}' failed: {exc}")
                 return
@@ -372,6 +376,8 @@ def stdout_observer(event: WorkflowEvent) -> None:
             print(f"[api]   {name}: {url}  params={params}")
             if body:
                 print(f"         body={body}")
+        case OutputRendered(step_name=name, text=text):
+            pass  # already printed by render_output
 
 
 # ── CLI harness ───────────────────────────────────────────────────────────────
