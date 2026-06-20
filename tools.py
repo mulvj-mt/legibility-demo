@@ -31,7 +31,8 @@ def _make_observer(session: dict):
                     session["event_log"].append(f"        body={body}")
             case OutputRendered(step_name=name, text=text):
                 session["event_log"].append(f"[output] {name}:\n{text}")
-                session["last_output"] = text
+                prior = session.get("last_output")
+                session["last_output"] = f"{prior}\n\n{text}" if prior else text
     return obs
 
 

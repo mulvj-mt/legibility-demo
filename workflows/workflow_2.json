@@ -88,6 +88,11 @@
         "max_temp":      "{get_weather[daily][temperature_2m_max][0]}",
         "min_temp":      "{get_weather[daily][temperature_2m_min][0]}"
       }
+    },
+    {
+      "name": "confirm_report",
+      "type": "output",
+      "template": "Your report record id number is {save_report[record_id]}"
     }
   ]
 }
