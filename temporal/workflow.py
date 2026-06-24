@@ -61,14 +61,8 @@ class BriefingWorkflow:
         """Read the geocoded candidates from the waiting workflow (non-mutating)."""
         return self._candidates
 
-    # ── Workflow run ─────────────────────────────────────────────────────────
-
     @workflow.run
     async def run(self, location: str, date: str) -> str:
-        # ── Activity 1: geocode ──────────────────────────────────────────────
-        # This is the only activity that runs before the possible human pause.
-        # After a worker kill/restart, Temporal replays from event history and
-        # does NOT re-execute this call — the result is read from history.
         candidates: list[dict] = await workflow.execute_activity(
             geocode_location,
             location,
@@ -79,13 +73,8 @@ class BriefingWorkflow:
         if not candidates:
             raise ApplicationError(f"No locations found for {location!r}")
 
-        # Store candidates in workflow state so get_candidates() query can read them.
         self._candidates = candidates
 
-        # ── Human pause (if needed) ──────────────────────────────────────────
-        # wait_condition suspends the coroutine until the predicate is true.
-        # The workflow sits in "Running" state in the UI, consuming no CPU,
-        # until the choose_location signal arrives.
         if len(candidates) > 1:
             await workflow.wait_condition(lambda: self._chosen_index is not None)
             chosen = candidates[self._chosen_index]  # type: ignore[index]
@@ -95,11 +84,6 @@ class BriefingWorkflow:
         loc_date = LocationDateInput(lat=chosen["lat"], lon=chosen["lon"], date=date)
         location_name = chosen["display_name"]
 
-        # ── Activities 2 & 3: concurrent ────────────────────────────────────
-        # get_sunrise_sunset and get_weather are independent once lat/lon is
-        # known.  asyncio.gather schedules both; the worker runs them in the
-        # ThreadPoolExecutor simultaneously (visible as two parallel activity
-        # entries in the Web UI history).
         sunrise_result, weather_result = await asyncio.gather(
             workflow.execute_activity(
                 get_sunrise_sunset,
@@ -115,7 +99,6 @@ class BriefingWorkflow:
             ),
         )
 
-        # Cast from Any (asyncio.gather loses type info)
         sr: SunriseSunsetResult = sunrise_result
         wr: WeatherResult = weather_result
 
