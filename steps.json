@@ -1,0 +1,90 @@
+[
+ {
+   "step_id": 1,
+   "section": "eligibility",
+   "question": "Are you renewing your bus or lorry entitlement? ",
+   "additional_context": "This includes full, provisional and expired entitlement. You should answer yes if your license has vehicle categories C1, C, D1, D, C1E, CE, D1E or DE",
+   "options": "Select 1: [Yes] [No]",
+   "condition": ""
+ },
+ {
+   "step_id": 2,
+   "section": "eligibility",
+   "question": "Are you renewing a short term medical licence?",
+   "additional_context": "You should answer yes if your licence type is \"Temporary medical\"",
+   "options": "Select 1: [Yes] [No]",
+   "condition": ""
+ },
+ {
+   "step_id": 3,
+   "section": "eligibility",
+   "question": "Are you currently disqualified from driving in the UK?",
+   "additional_context": "You should answer yes if your licence says disqualified from driving is True",
+   "options": "Select 1: [Yes] [No] ",
+   "condition": ""
+ },
+ {
+   "step_id": 4,
+   "section": "get_information",
+   "question": "What address would you like on your new licence?",
+   "additional_context": "You can provide just a house name or number and postcode",
+   "options": "Text",
+   "condition": ""
+ },
+ {
+   "step_id": 5,
+   "section": "get_information",
+   "question": "Do you want to renew the photo on your driving licence?",
+   "additional_context": "If you renew your photo now, the fee is £14  If you do not renew your photo now, otherwise it will be £7.  We will send a photo renewal reminder 2 months before the expiry date.",
+   "options": "Select 1: [Yes] [No] ",
+   "condition": ""
+ },
+ {
+   "step_id": 6,
+   "section": "get_information",
+   "question": "Do you have your current GB driving licence?",
+   "additional_context": "You must cut your old licence in half and send it to DVLA when you get your new licence.  The address to return your licence will be in the confirmation email you get when you complete your application. ",
+   "options": "Select 1: [Yes] [Yes, but it's defaced or destroyed] [No, it's lost or stolen]",
+   "condition": ""
+ },
+ {
+   "step_id": 7,
+   "section": "get_information",
+   "question": "Would you like to be on the NHS Organ Donor Register? ",
+   "additional_context": "Saying no will remove you if you are already registered",
+   "options": "Select 1: [Yes] [No] ",
+   "condition": ""
+ },
+ {
+   "step_id": 8,
+   "section": "get_information",
+   "question": "Organ donation  You can choose to donate all of your organs and tissue or some organs ",
+   "additional_context": "",
+   "options": "Select any number: [Kidneys] [Corneas] [Heart] [Lungs] [Liver] [Pancreas]",
+   "condition": "If step 7 was Yes"
+ },
+ {
+   "step_id": 9,
+   "section": "get_payment",
+   "question": "You must now pay for your new licence",
+   "additional_context": "It will be £14 if you have updated your photo and £7 otherwise",
+   "options": "",
+   "condition": ""
+ },
+ {
+   "step_id": 10,
+   "section": "next_steps",
+   "question": "You must cut your old licence in half and send it to DVLA when you get your new licence.  The address to return your licence will be in the confirmation email you get when you complete your application. ",
+   "additional_context": "",
+   "options": "",
+   "condition": "If step 6 was Yes"
+ },
+ {
+   "step_id": 11,
+   "section": "next_steps",
+   "question": "Change the address on your vehicle log book (V5C)",
+   "additional_context": "If you are the registered keeper of the vehicle",
+   "options": "",
+   "condition": ""
+ }
+]
