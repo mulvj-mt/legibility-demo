@@ -20,11 +20,6 @@ sourceDescriptions:
     type: openapi
 
 workflows:
-  # ── Turn 1 ────────────────────────────────────────────────────────────────
-  # Geocode a UK place name.  Returns the full candidates array; the outer
-  # orchestration layer decides whether disambiguation is needed and, if so,
-  # pauses to ask the user.  Arazzo cannot make that decision — it has no
-  # way to suspend execution and wait for human input.
   - workflowId: geocodeLocation
     summary: Turn 1 — geocode a UK location name and return all candidates
     inputs:
