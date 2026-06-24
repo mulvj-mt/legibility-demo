@@ -1,0 +1,57 @@
+openapi: 3.1.0
+info:
+  title: Nominatim Search API
+  description: Minimal fragment covering the single search operation used by the briefing journey.
+  version: 1.0.0
+servers:
+  - url: https://nominatim.openstreetmap.org
+paths:
+  /search:
+    get:
+      operationId: searchLocation
+      summary: Search for a place by name and return geocoded candidates
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Free-form query string (e.g. "Richmond, UK")
+        - name: format
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [json]
+          description: Response format; must be "json"
+        - name: limit
+          in: query
+          schema:
+            type: string
+          description: Maximum number of results to return
+        - name: User-Agent
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Nominatim requires a non-empty User-Agent header
+      responses:
+        '200':
+          description: Array of location candidates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    place_id:
+                      type: integer
+                    display_name:
+                      type: string
+                    lat:
+                      type: string
+                    lon:
+                      type: string
+                    type:
+                      type: string

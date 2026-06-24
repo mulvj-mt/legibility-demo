@@ -1,0 +1,59 @@
+openapi: 3.1.0
+info:
+  title: Sunrise-Sunset API
+  description: Minimal fragment covering the single operation used by the briefing journey.
+  version: 1.0.0
+servers:
+  - url: https://api.sunrise-sunset.org
+paths:
+  /json:
+    get:
+      operationId: getSunriseSunset
+      summary: Get sunrise and sunset times for a lat/lon and date
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Latitude (WGS84)
+        - name: lng
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Longitude (WGS84)
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Date in YYYY-MM-DD format
+        - name: formatted
+          in: query
+          schema:
+            type: string
+          description: Pass "0" to get ISO 8601 UTC times instead of 12h strings
+      responses:
+        '200':
+          description: Sunrise and sunset times
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: object
+                    properties:
+                      sunrise:
+                        type: string
+                        description: Sunrise time (ISO 8601 when formatted=0)
+                      sunset:
+                        type: string
+                        description: Sunset time (ISO 8601 when formatted=0)
+                      solar_noon:
+                        type: string
+                      day_length:
+                        type: integer
+                  status:
+                    type: string

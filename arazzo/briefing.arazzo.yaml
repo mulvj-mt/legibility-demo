@@ -1,0 +1,141 @@
+arazzo: 1.0.0
+info:
+  title: Weather Briefing
+  description: >
+    Two-workflow split for the weather/sunset briefing journey.
+    Arazzo has no native pause/resume, so each conversational turn is a separate
+    workflow invocation. An outer orchestration layer (orchestrator.py) owns the
+    pause, the persisted between-turn state, and the turn-stitching.
+  version: 0.1.0
+
+sourceDescriptions:
+  - name: nominatim
+    url: ./openapi/nominatim.yaml
+    type: openapi
+  - name: sunrise_sunset
+    url: ./openapi/sunrise_sunset.yaml
+    type: openapi
+  - name: open_meteo
+    url: ./openapi/open_meteo_forecast.yaml
+    type: openapi
+
+workflows:
+  # ── Turn 1 ────────────────────────────────────────────────────────────────
+  # Geocode a UK place name.  Returns the full candidates array; the outer
+  # orchestration layer decides whether disambiguation is needed and, if so,
+  # pauses to ask the user.  Arazzo cannot make that decision — it has no
+  # way to suspend execution and wait for human input.
+  - workflowId: geocodeLocation
+    summary: Turn 1 — geocode a UK location name and return all candidates
+    inputs:
+      type: object
+      properties:
+        location:
+          type: string
+          description: Place name to geocode (searched within the UK)
+      required:
+        - location
+    steps:
+      - stepId: geocode
+        operationId: searchLocation
+        parameters:
+          - name: q
+            in: query
+            value: "{$inputs.location}, UK"
+          - name: format
+            in: query
+            value: json
+          - name: limit
+            in: query
+            value: "10"
+          - name: User-Agent
+            in: header
+            value: legibility-demo/0.1
+        successCriteria:
+          - condition: $statusCode == 200
+        outputs:
+          candidates: $response.body
+    outputs:
+      candidates: $steps.geocode.outputs.candidates
+
+  # ── Turn 2 ────────────────────────────────────────────────────────────────
+  # Given a confirmed lat/lon (from Turn 1 output, after any disambiguation),
+  # fetch sunrise/sunset and weather and expose them as workflow outputs.
+  # The outer layer assembles these into the human-readable briefing string.
+  - workflowId: generateBriefing
+    summary: Turn 2 — fetch sunrise/sunset and weather for a confirmed location and date
+    inputs:
+      type: object
+      properties:
+        lat:
+          type: string
+          description: Latitude of the confirmed location
+        lon:
+          type: string
+          description: Longitude of the confirmed location
+        date:
+          type: string
+          description: Date for the briefing in YYYY-MM-DD format
+        location_name:
+          type: string
+          description: Human-readable location name (for display only; not used in API calls)
+      required:
+        - lat
+        - lon
+        - date
+    steps:
+      - stepId: getSunset
+        operationId: getSunriseSunset
+        parameters:
+          - name: lat
+            in: query
+            value: $inputs.lat
+          - name: lng
+            in: query
+            value: $inputs.lon
+          - name: date
+            in: query
+            value: $inputs.date
+          - name: formatted
+            in: query
+            value: "0"
+        successCriteria:
+          - condition: $statusCode == 200
+        outputs:
+          sunrise: $response.body#/results/sunrise
+          sunset: $response.body#/results/sunset
+
+      - stepId: getWeather
+        operationId: getForecast
+        parameters:
+          - name: latitude
+            in: query
+            value: $inputs.lat
+          - name: longitude
+            in: query
+            value: $inputs.lon
+          - name: start_date
+            in: query
+            value: $inputs.date
+          - name: end_date
+            in: query
+            value: $inputs.date
+          - name: daily
+            in: query
+            value: temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code
+          - name: timezone
+            in: query
+            value: auto
+        successCriteria:
+          - condition: $statusCode == 200
+        outputs:
+          max_temp: $response.body#/daily/temperature_2m_max/0
+          min_temp: $response.body#/daily/temperature_2m_min/0
+          precip: $response.body#/daily/precipitation_sum/0
+
+    outputs:
+      sunrise: $steps.getSunset.outputs.sunrise
+      sunset: $steps.getSunset.outputs.sunset
+      max_temp: $steps.getWeather.outputs.max_temp
+      min_temp: $steps.getWeather.outputs.min_temp
+      precip: $steps.getWeather.outputs.precip
