@@ -1,16 +1,11 @@
 """Strands tool definitions for the legibility-demo workflow agent."""
 import json
-import sys
 import requests
-from pathlib import Path
 from strands import tool
 from fsm import (
     WorkflowRunner, WorkflowError,
     StepStarted, StepCompleted, AwaitingInput, ApiCall, OutputRendered,
 )
-
-sys.path.insert(0, str(Path(__file__).parent / "arazzo"))
-from orchestrator import geocode_location, generate_briefing, BriefingState  # noqa: E402
 
 WORKFLOW_SERVER = "http://127.0.0.1:8000"
 
@@ -148,72 +143,4 @@ def make_tools(session: dict) -> list:
             return json.dumps({"status": "error", "error_message": str(e)})
         return json.dumps(_current_status(runner, session))
 
-    # ── Arazzo-based briefing tools (Option B: workflow-per-turn split) ──────
-
-    def arazzo_start_briefing(location: str, date: str) -> str:
-        """Start the Arazzo-based weather briefing journey for a UK location and date.
-
-        Geocodes the location via the Arazzo geocodeLocation workflow. If the result
-        is unambiguous, proceeds directly to the full briefing. If multiple candidates
-        are found, returns them for the user to choose from; call
-        arazzo_resume_briefing with the returned state and the user's choice to continue.
-
-        Args:
-            location: UK place name (e.g. "Moel Famau", "Richmond").
-            date:     Date in YYYY-MM-DD format (e.g. "2026-06-21").
-
-        Returns a JSON object with one of these shapes:
-        - {"status": "complete", "output": "...briefing text..."}
-        - {"status": "needs_disambiguation", "options": [{"index": 0, "label": "..."}, ...],
-           "state": "<opaque JSON string — pass unchanged to arazzo_resume_briefing>"}
-        - {"status": "error", "error_message": "..."}
-        """
-        try:
-            turn1 = geocode_location(location, date)
-        except Exception as e:
-            return json.dumps({"status": "error", "error_message": str(e)})
-
-        if not turn1.candidates:
-            return json.dumps({
-                "status": "error",
-                "error_message": f"No locations found for {location!r}",
-            })
-
-        if not turn1.needs_disambiguation:
-            try:
-                briefing = generate_briefing(turn1.state, 0)
-            except Exception as e:
-                return json.dumps({"status": "error", "error_message": str(e)})
-            return json.dumps({"status": "complete", "output": briefing.format()})
-
-        return json.dumps({
-            "status": "needs_disambiguation",
-            "options": [
-                {"index": i, "label": c["display_name"]}
-                for i, c in enumerate(turn1.candidates)
-            ],
-            "state": turn1.state.to_json(),
-        })
-
-    def arazzo_resume_briefing(state: str, chosen_index: int) -> str:
-        """Complete the Arazzo briefing after the user has chosen a location candidate.
-
-        Args:
-            state:        The opaque state string returned by arazzo_start_briefing.
-            chosen_index: The numeric index of the candidate chosen by the user.
-
-        Returns a JSON object:
-        - {"status": "complete", "output": "...briefing text..."}
-        - {"status": "error", "error_message": "..."}
-        """
-        try:
-            restored = BriefingState.from_json(state)
-            briefing = generate_briefing(restored, int(chosen_index))
-        except Exception as e:
-            return json.dumps({"status": "error", "error_message": str(e)})
-        return json.dumps({"status": "complete", "output": briefing.format()})
-
-    return [
-        tool(list_workflows), tool(start_workflow), tool(resume_workflow),
-        tool(arazzo_start_briefing), tool(arazzo_resume_briefing),
-    ]
+    return [tool(list_workflows), tool(start_workflow), tool(resume_workflow)]
